@@ -45,6 +45,7 @@ open import Relation.Binary.Product.Pointwise
   using (_×-cong_)
 
 open import Relation.Nullary
+open import Relation.Nullary.Negation
 open import Relation.Unary
   using (_∈_; _∪_; _⊆_)
   renaming (Decidable to Decidable₁)
@@ -258,6 +259,45 @@ wfWhistle {A} _<_ _<?_ wf = ⟨ ↯ , ↯∷ , ↯? , bar[] ⟩
           helper c′ with c′ <? c
           ... | yes c′<c = bar c′ (c ∷ h) (rs c′ c′<c)
           ... | no  c′≮c = now (inj₁ c′≮c)
+
+  bar[] : Bar ↯ []
+  bar[] = later (λ c → bar c [] (wf c))
+
+-- wfGenWhistle
+
+wfGenWhistle : ∀ {A : Set} (_<_ : Rel A Level.zero) → Decidable₂ _<_ →
+                (wf : Well-founded _<_) → BarWhistle A
+wfGenWhistle {A} _<_ _<?_ wf = ⟨ ↯ , ↯∷ , ↯? , bar[] ⟩
+  where
+
+  ↯ : (h : List A) → Set
+  ↯ [] = ⊥
+  ↯ (c ∷ h) = Any (λ c' → ¬ c < c') h ⊎ ↯ h
+
+  ↯∷ : (c : A) (h : List A) → ↯ h → ↯ (c ∷ h)
+  ↯∷ c h dh = inj₂ dh
+
+  ↯? : (h : List A) → Dec (↯ h)
+  ↯? [] = no id
+  ↯? (c ∷ h) with Any.any (λ c' → ¬? (c <? c')) h 
+  ↯? (c ∷ h) | yes dch = yes (inj₁ dch)
+  ↯? (c ∷ h) | no ¬dch with ↯? h
+  ↯? (c ∷ h) | no ¬dch | yes dh = yes (inj₂ dh)
+  ↯? (c ∷ h) | no ¬dch | no ¬dh = no (λ dch → helper ¬dch ¬dh dch)
+    where
+    helper : ¬(Any (λ c' → ¬ c < c') h) → ¬ (↯ h) → ↯ (c ∷ h) → ⊥
+    helper ¬dch₁ ¬dh₁ (inj₁ dch) = ¬dch₁ dch
+    helper ¬dch₁ ¬dh₁ (inj₂ dh) = ¬dh₁ dh
+
+  bar : ∀ c (h : List A) → Acc _<_ c → Bar ↯ (c ∷ h)
+  bar c h (acc rs) with Any.any (λ c' → ¬? (c <? c')) h
+  bar c h (acc rs) | yes dch = now (inj₁ dch)
+  bar c h (acc rs) | no ¬dch = later helper
+    where
+    helper : (c' : A) → Bar ↯ (c' ∷ c ∷ h)
+    helper c' with c' <? c
+    helper c' | yes c'<c = bar c' (c ∷ h) (rs c' c'<c)
+    helper c' | no ¬c'<c = now (inj₁ (Any.here ¬c'<c))
 
   bar[] : Bar ↯ []
   bar[] = later (λ c → bar c [] (wf c))
