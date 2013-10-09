@@ -293,9 +293,10 @@ module CntSc {k : ℕ} (cntWorld : CntWorld {k})
 -- An alternative definition of a counter-system supercompiler
 --
 
-module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
+module CntSc' {k : ℕ} (cntWorld : CntWorld {suc k}) where
   open import Induction.WellFounded
   open import Induction.Nat
+  open import Data.Product 
 
   open CntWorld cntWorld public
 
@@ -376,7 +377,14 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
   wfWh : BarWhistle Conf
   wfWh = wfGenWhistle _<_ _<?_ <-wf
 
-  mkScWorld : (cntWorld : CntWorld {k}) → ScWorld
+  hist1 : List Conf
+  hist1 = (# 2 ∷ Vec.replicate (# 1)) ∷ (Vec.replicate (# 1)) ∷ []
+  wfWh-test1 : Bool
+  wfWh-test1 with BarWhistle.↯? wfWh hist1
+  wfWh-test1 | yes p = {!!}
+  wfWh-test1 | no ¬p = {!!}
+
+  mkScWorld : (cntWorld : CntWorld {suc k}) → ScWorld
   mkScWorld ⟨⟨ start , _⇊ , unsafe ⟩⟩ = record
     { Conf = Conf
     ; _⊑_ = _⊑_
