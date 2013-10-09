@@ -296,7 +296,7 @@ module CntSc {k : ℕ} (cntWorld : CntWorld {k})
 module CntSc' {k : ℕ} (cntWorld : CntWorld {suc k}) where
   open import Induction.WellFounded
   open import Induction.Nat
-  open import Data.Product 
+  open import VecWf
 
   open CntWorld cntWorld public
 
@@ -317,48 +317,45 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {suc k}) where
 
   data _<ω_ : (m n : ℕω) → Set where
     #<ω : ∀ {i} → # i <ω ω
-    #<ω# : ∀ {i j} → i N.< j → # i <ω # j
+    #<ω# : ∀ {i j} → i N.<′ j → # i <ω # j
 
   _<ω?_ : Decidable₂ _<ω_
   ω     <ω? _     = no (λ ())
   (# i) <ω? ω     = yes #<ω
   (# i) <ω? (# j) with (suc i) N.≤? j
-  (# i) <ω? (# j) | yes lt = yes (#<ω# lt)
+  (# i) <ω? (# j) | yes lt = yes (#<ω# (NP.≤⇒≤′ lt))
   (# i) <ω? (# j) | no ¬lt = no (helper ¬lt)
     where
     helper : ∀ {i j} → ¬ i N.< j → # i <ω # j → ⊥
-    helper ¬lt (#<ω# lt) = ¬lt lt
+    helper ¬lt (#<ω# lt) = ¬lt (NP.≤′⇒≤ lt)
 
   _≤ω_ : (m n : ℕω) → Set
   m ≤ω n = m <ω n ⊎ m ≡ n
 
-  _<_ : (c c′ : Conf) → Set
-  _<_ c c′ = Pointwise _<ω_ c c′
-
-  _<?_ : Decidable₂ _<_
-  _<?_ = Pointwise.decidable _<ω?_
-
-  _≤_ : (c c′ : Conf) → Set
-  _≤_ c c′ = Pointwise _≤ω_ c c′
-
-  acc-# : ∀ i → Acc N._<_ i → Acc _<ω_ (# i)
+  acc-# : ∀ i → Acc N._<′_ i → Acc _<ω_ (# i)
   acc-# i (acc rs) = acc helper
     where
       helper : ∀ n → n <ω (# i) → Acc _<ω_ n
       helper .(# j) (#<ω# {j} j<i) = acc-# j (rs j j<i)
 
-  acc-ω : Well-founded N._<_ → Acc _<ω_ ω
+  acc-ω : Well-founded N._<′_ → Acc _<ω_ ω
   acc-ω wfN = acc helper
     where
       helper : ∀ n → n <ω ω → Acc _<ω_ n
       helper .(# i) (#<ω {i}) = acc-# i (wfN i)
 
   <ω-wf : Well-founded _<ω_
-  <ω-wf ω = acc-ω {!<-well-founded!}
-  <ω-wf (# i) = acc-# i {!<-well-founded!}
+  <ω-wf ω = acc-ω <-well-founded
+  <ω-wf (# i) = acc-# i (<-well-founded i)
+
+  _<_ : (c c′ : Conf) → Set
+  _<_ c c′ = Vec< _<ω_ c c′
+
+  _<?_ : Decidable₂ _<_
+  _<?_ = {!!}
 
   <-wf : Well-founded _<_
-  <-wf = {!!}
+  <-wf = Vec<-wf _<ω_ <ω-wf
 
   -- Rebuildings
 
@@ -376,13 +373,6 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {suc k}) where
 
   wfWh : BarWhistle Conf
   wfWh = wfGenWhistle _<_ _<?_ <-wf
-
-  hist1 : List Conf
-  hist1 = (# 2 ∷ Vec.replicate (# 1)) ∷ (Vec.replicate (# 1)) ∷ []
-  wfWh-test1 : Bool
-  wfWh-test1 with BarWhistle.↯? wfWh hist1
-  wfWh-test1 | yes p = {!!}
-  wfWh-test1 | no ¬p = {!!}
 
   mkScWorld : (cntWorld : CntWorld {suc k}) → ScWorld
   mkScWorld ⟨⟨ start , _⇊ , unsafe ⟩⟩ = record
