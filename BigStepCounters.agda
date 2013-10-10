@@ -329,8 +329,10 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {suc k}) where
     helper : ∀ {i j} → ¬ i N.< j → # i <ω # j → ⊥
     helper ¬lt (#<ω# lt) = ¬lt (NP.≤′⇒≤ lt)
 
+{-
   _≤ω_ : (m n : ℕω) → Set
   m ≤ω n = m <ω n ⊎ m ≡ n
+-}
 
   acc-# : ∀ i → Acc N._<′_ i → Acc _<ω_ (# i)
   acc-# i (acc rs) = acc helper
@@ -352,7 +354,7 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {suc k}) where
   _<_ c c′ = Vec< _<ω_ c c′
 
   _<?_ : Decidable₂ _<_
-  _<?_ = {!!}
+  _<?_ c₁ c₂ = Vec<-dec _≟ω_ _<ω_ _<ω?_ c₁ c₂
 
   <-wf : Well-founded _<_
   <-wf = Vec<-wf _<ω_ <ω-wf
