@@ -293,7 +293,10 @@ module CntSc {k : ℕ} (cntWorld : CntWorld {k})
 -- An alternative definition of a counter-system supercompiler
 --
 
-module CntSc' {k : ℕ} (cntWorld : CntWorld {suc k}) where
+module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
+  open import Data.Product
+  open import Data.Fin as Fin using (Fin) 
+  open import Data.Vec hiding ([_])
   open import Induction.WellFounded
   open import Induction.Nat
   open import VecWf
@@ -329,10 +332,8 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {suc k}) where
     helper : ∀ {i j} → ¬ i N.< j → # i <ω # j → ⊥
     helper ¬lt (#<ω# lt) = ¬lt (NP.≤′⇒≤ lt)
 
-{-
   _≤ω_ : (m n : ℕω) → Set
   m ≤ω n = m <ω n ⊎ m ≡ n
--}
 
   acc-# : ∀ i → Acc N._<′_ i → Acc _<ω_ (# i)
   acc-# i (acc rs) = acc helper
@@ -350,6 +351,7 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {suc k}) where
   <ω-wf ω = acc-ω <-well-founded
   <ω-wf (# i) = acc-# i (<-well-founded i)
 
+{-
   _<_ : (c c′ : Conf) → Set
   _<_ c c′ = Vec< _<ω_ c c′
 
@@ -358,6 +360,7 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {suc k}) where
 
   <-wf : Well-founded _<_
   <-wf = Vec<-wf _<ω_ <ω-wf
+-}
 
   -- Rebuildings
 
@@ -374,15 +377,42 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {suc k}) where
     where remove-c = List.filter (λ c′ → ⌊ ¬? (c ≟Conf c′) ⌋)
 
   wfWh : BarWhistle Conf
-  wfWh = wfGenWhistle _<_ _<?_ <-wf
+  wfWh = wfGenWhistle (Vec< _<ω_) (Vec<-dec _≟ω_ _<ω_ _<ω?_) (Vec<-wf _<ω_ <ω-wf)
 
-  mkScWorld : (cntWorld : CntWorld {suc k}) → ScWorld
+  {- ¬ R newC oldC = ∀ i, oldC[i] ≤ newC[i]
+     R newC oldC = ∃ i, ¬ oldC[i] ≤ newC[i]
+     R newC oldC = ∃ i, oldC[i] > newC[i]
+     R newC oldC = ∃ i, newC[i] < oldC[i] -}
+
+  {-
+  _<C_ : Conf → Conf → Set
+  c₁ <C c₂ = ∃ (λ (i : Fin k) → (lookup i c₁) <ω (lookup i c₂))
+  -}
+
+  ↯C : List Conf → Set
+  ↯C [] = ⊥
+  ↯C (c ∷ cs) = Any (λ c' → (i : _) → lookup i c' ≤ω lookup i c) cs ⊎ ↯C cs
+
+  whistle : BarWhistle Conf
+  whistle = ⟨ ↯C , {!!} , {!!} , (bar-mono wfWh↯⊆<↯C [] (BarWhistle.bar[] wfWh)) ⟩
+    where
+    ¬Vec<⇒∀≤ω : ∀ c₁ c₂ → ¬ Vec< _<ω_ c₁ c₂ → (i : _) → lookup i c₂ ≤ω lookup i c₁
+    ¬Vec<⇒∀≤ω c₁ c₂ ¬Vec< i = {!!}
+
+    wfWh↯⊆<↯C : ∀ {h} → BarWhistle.↯ wfWh h → ↯C h
+    wfWh↯⊆<↯C {[]} ()
+    wfWh↯⊆<↯C {c ∷ []} (inj₁ ())
+    wfWh↯⊆<↯C {c ∷ c' ∷ h} (inj₁ (here ¬cVec<c')) = inj₁ (here (¬Vec<⇒∀≤ω c c' ¬cVec<c'))
+    wfWh↯⊆<↯C {c ∷ c' ∷ h} (inj₁ (there pAny)) = inj₁ (there {!!})
+    wfWh↯⊆<↯C {c ∷ h} (inj₂ dh) = inj₂ (wfWh↯⊆<↯C dh)
+
+  mkScWorld : (cntWorld : CntWorld {k}) → ScWorld
   mkScWorld ⟨⟨ start , _⇊ , unsafe ⟩⟩ = record
     { Conf = Conf
     ; _⊑_ = _⊑_
     ; _⊑?_ = _⊑?_
     ; _⇉ = λ c → c ⇊ ∷ List.map [_] (c ↷) -- driving + rebuilding
-    ; whistle = wfWh
+    ; whistle = whistle
     }
 
   scWorld : ScWorld
