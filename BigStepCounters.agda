@@ -382,22 +382,16 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
      R newC oldC = ∃ i, newC[i] < oldC[i] -}
 
   _<C_ : ∀ {k} → Vec ℕω k → Vec ℕω k → Set
-  c₁ <C c₂ = ∃ (λ (i : _) → lookup i c₁ <ω lookup i c₂) × Pointwise _≤ω_ c₁ c₂
+  c₁ <C c₂ = Pointwise _≤ω_ c₁ c₂ × c₁ ≢ c₂
 
   <C⇒Vec< : ∀ {k} {c₁ c₂ : Vec ℕω k} → c₁ <C c₂ → Vec< _<ω_ c₁ c₂
-  <C⇒Vec< {zero} {[]} {[]} ((() , _) , _)
-  <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} ((Fin.zero , c₁i<ωc₂i) , all≤ω) =
-    Lexicographic.left c₁i<ωc₂i
-  <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} ((Fin.suc i , c₁i<ωc₂i) , all≤ω) with m ≟ω n
-  <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} ((Fin.suc i , c₁i<ωc₂i) , all≤ω) | yes m≡n rewrite m≡n = 
-    Lexicographic.right (<C⇒Vec< ((i , c₁i<ωc₂i) , 
-      Pointwise.ext (λ i → Pointwise.Pointwise.app all≤ω (Fin.suc i))))
-  <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} ((Fin.suc i , c₁i<ωc₂i) , all≤ω) | no m≢n = 
-    Lexicographic.left (≤ω∧≢⇒<ω m n (Pointwise.Pointwise.app all≤ω Fin.zero) m≢n)
-    where
-      ≤ω∧≢⇒<ω : ∀ m n → m ≤ω n → m ≢ n → m <ω n
-      ≤ω∧≢⇒<ω m n (inj₁ m<ωn) m≢n = m<ωn
-      ≤ω∧≢⇒<ω m n (inj₂ m≡n) m≢n = ⊥-elim (m≢n m≡n)
+  <C⇒Vec< {zero} {[]} {[]} (Pointwise.ext app , []≢[]) = []≢[] refl
+  <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} (Pointwise.ext all≤ω , c₁≢c₂) with m ≟ω n
+  <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} (Pointwise.ext all≤ω , c₁≢c₂) | yes m≡n rewrite m≡n =
+    Lexicographic.right (<C⇒Vec< ((Pointwise.ext (λ i → all≤ω (Fin.suc i))) ,
+                                  (λ c₁≡c₂ → {!!})))
+  <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} (Pointwise.ext all≤ω , c₁≢c₂) | no m≢n = 
+    {!!}
 
   <C-wf : ∀ {k} → Well-founded (_<C_ {k})
   <C-wf = Subrelation.well-founded <C⇒Vec< (Vec<-wf _<ω_ <ω-wf) 
