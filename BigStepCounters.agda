@@ -34,7 +34,7 @@ open import Relation.Nullary.Negation
 open import Relation.Nullary.Sum
 
 open import Relation.Unary
-  using () renaming (Decidable to Decidable₁)
+  using () renaming (Decidable to Decidable₁; _⊆_ to _⋐_)
 open import Relation.Binary
   using (Rel) renaming (Decidable to Decidable₂)
 open import Relation.Binary.PropositionalEquality
@@ -382,7 +382,7 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
      R newC oldC = ∃ i, newC[i] < oldC[i] -}
 
   _<C_ : ∀ {k} → Vec ℕω k → Vec ℕω k → Set
-  c₁ <C c₂ = ∃ (λ (i : _) → lookup i c₁ <ω lookup i c₂) × ((i : _) → lookup i c₁ ≤ω lookup i c₂)
+  c₁ <C c₂ = ∃ (λ (i : _) → lookup i c₁ <ω lookup i c₂) × Pointwise _≤ω_ c₁ c₂
 
   <C⇒Vec< : ∀ {k} {c₁ c₂ : Vec ℕω k} → c₁ <C c₂ → Vec< _<ω_ c₁ c₂
   <C⇒Vec< {zero} {[]} {[]} ((() , _) , _)
@@ -390,9 +390,10 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
     Lexicographic.left c₁i<ωc₂i
   <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} ((Fin.suc i , c₁i<ωc₂i) , all≤ω) with m ≟ω n
   <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} ((Fin.suc i , c₁i<ωc₂i) , all≤ω) | yes m≡n rewrite m≡n = 
-    Lexicographic.right (<C⇒Vec< ((i , c₁i<ωc₂i) , (λ j → all≤ω (Fin.suc j))))
+    Lexicographic.right (<C⇒Vec< ((i , c₁i<ωc₂i) , 
+      Pointwise.ext (λ i → Pointwise.Pointwise.app all≤ω (Fin.suc i))))
   <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} ((Fin.suc i , c₁i<ωc₂i) , all≤ω) | no m≢n = 
-    Lexicographic.left (≤ω∧≢⇒<ω m n (all≤ω Fin.zero) m≢n)
+    Lexicographic.left (≤ω∧≢⇒<ω m n (Pointwise.Pointwise.app all≤ω Fin.zero) m≢n)
     where
       ≤ω∧≢⇒<ω : ∀ m n → m ≤ω n → m ≢ n → m <ω n
       ≤ω∧≢⇒<ω m n (inj₁ m<ωn) m≢n = m<ωn
@@ -402,26 +403,24 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
   <C-wf = Subrelation.well-founded <C⇒Vec< (Vec<-wf _<ω_ <ω-wf) 
 
   wfWh : BarWhistle Conf
-  wfWh = wfGenWhistle _<C_ {!!} <C-wf
+  wfWh = wfGenWhistle _<C_ (λ c c' → {!!}) <C-wf
 
-  {-
+  {--}
   ↯C : List Conf → Set
   ↯C [] = ⊥
-  ↯C (c ∷ cs) = Any (λ c' → (i : _) → lookup i c' ≤ω lookup i c) cs ⊎ ↯C cs
+  ↯C (c ∷ cs) = Any (λ c' → Pointwise _≤ω_ c' c) cs ⊎ ↯C cs
 
   whistle : BarWhistle Conf
   whistle = ⟨ ↯C , {!!} , {!!} , (bar-mono wfWh↯⊆<↯C [] (BarWhistle.bar[] wfWh)) ⟩
     where
-    ¬Vec<⇒∀≤ω : ∀ c₁ c₂ → ¬ Vec< _<ω_ c₁ c₂ → (i : _) → lookup i c₂ ≤ω lookup i c₁
-    ¬Vec<⇒∀≤ω c₁ c₂ ¬Vec< i = {!!}
+    Any⋐Any : ∀ c → Any (λ c' → ¬ c <C c') ⋐ Any (λ c' → Pointwise _≤ω_ c' c) 
+    Any⋐Any c {h} pAny = Any.map (λ {c'} ¬c<Cc' → Pointwise.ext (λ i → {!!})) pAny
 
     wfWh↯⊆<↯C : ∀ {h} → BarWhistle.↯ wfWh h → ↯C h
     wfWh↯⊆<↯C {[]} ()
-    wfWh↯⊆<↯C {c ∷ []} (inj₁ ())
-    wfWh↯⊆<↯C {c ∷ c' ∷ h} (inj₁ (here ¬cVec<c')) = inj₁ (here (¬Vec<⇒∀≤ω c c' ¬cVec<c'))
-    wfWh↯⊆<↯C {c ∷ c' ∷ h} (inj₁ (there pAny)) = inj₁ (there {!!})
+    wfWh↯⊆<↯C {c ∷ h} (inj₁ pAny) = inj₁ (Any⋐Any c pAny)
     wfWh↯⊆<↯C {c ∷ h} (inj₂ dh) = inj₂ (wfWh↯⊆<↯C dh)
-  -}
+  {--}
 
   mkScWorld : (cntWorld : CntWorld {k}) → ScWorld
   mkScWorld ⟨⟨ start , _⇊ , unsafe ⟩⟩ = record
