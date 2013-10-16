@@ -300,6 +300,7 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
   open import Induction.WellFounded
   open import Induction.Nat
   open import VecWf
+  open import AlmostFullRel
 
   open CntWorld cntWorld public
 
@@ -435,17 +436,39 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
   _≤C_ : ∀ {k} → Vec ℕω k → Vec ℕω k → Set
   c₁ ≤C c₂ = Pointwise _≤ω_ c₁ c₂
 
-  _≤C?_ : Decidable₂ _≤C_
+  _≤C?_ : ∀ {k} → Decidable₂ (_≤C_ {k})
   _≤C?_ = Pointwise.decidable _≤ω?_
 
+  postulate 
+    ≤-af : Almost-full N._≤_
+    ≤ω-af : Almost-full _≤ω_
+
+  ≤C-af : ∀ {k} → Almost-full (_≤C_ {k})
+  ≤C-af {zero} = now (λ x y → Pointwise.ext (λ ()))
+  ≤C-af {suc k₁} = 
+    helper (af-⇒ 
+      (λ {c c'} x → helper1 c c' x)
+      (af-× (af-inverseImage {f = Vec.head} ≤ω-af) (af-inverseImage {f = Vec.tail} ≤C-af)))
+    where      
+      helper : ∀ {k} → Almost-full (λ c c' → Pointwise.Pointwise′ _≤ω_ {n = k} c c') →
+                 Almost-full (_≤C_ {k})
+      helper = af-⇒ (λ {c c'} x → Equivalence.from Pointwise.equivalent ⟨$⟩ x) 
+      helper1 : ∀ {k} (c c' : Vec ℕω (suc k)) → 
+                  (Vec.head c ≤ω Vec.head c' × Vec.tail c ≤C Vec.tail c') →
+                  Pointwise.Pointwise′ _≤ω_ c c'
+      helper1 (x ∷ c) (x₁ ∷ c') (proj₁ , proj₂) = 
+        proj₁ Pointwise.∷ (Equivalence.to Pointwise.equivalent ⟨$⟩ proj₂)
+   
   afWh : BarWhistle Conf
   afWh = 
     ⟨ 
-      ⋑-World.⋑↯ (record { _⋑_ = _≤C_; _⋑?_ = _≤C?_ }) , 
+      ⋑-World.⋑↯ ≤C-world , 
       {!!} , 
-      {!!} , 
+      ⋑-World.⋑↯? ≤C-world , 
       (bar⋑↯⇔af⋑≫.af⋑≫→bar⋑↯ (record { _⋑_ = _≤C_; _⋑?_ = _≤C?_ }) [] {!!}) 
     ⟩
+    where
+      ≤C-world = record { _⋑_ = _≤C_; _⋑?_ = _≤C?_ }
 
   mkScWorld : (cntWorld : CntWorld {k}) → ScWorld
   mkScWorld ⟨⟨ start , _⇊ , unsafe ⟩⟩ = record
