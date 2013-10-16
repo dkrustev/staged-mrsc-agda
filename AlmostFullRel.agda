@@ -155,3 +155,20 @@ af⇒⟱ (later s) = λ c → af⇒⟱ (s c)
 
 ⟱-⇒ p⇒q (later s) P⟱t =
   λ c → ⟱-⇒ (Sum.map p⇒q p⇒q) (s c) (P⟱t c)
+
+-- af-inverseImage
+
+cofmap : ∀ {ℓ} {A B : Set ℓ} (f : B → A) (t : WFT A) → WFT B
+cofmap f now = now
+cofmap f (later s) = later (λ x → cofmap f (s (f x)))
+
+cofmap⟱ : ∀ {ℓ} {A B : Set ℓ} (f : B → A) (t : WFT A) (R : Rel A ℓ) →
+            R ⟱ t → (λ x y → R (f x) (f y)) ⟱ cofmap f t
+cofmap⟱ f now R R⟱t = λ x y → R⟱t (f x) (f y)
+cofmap⟱ f (later s) R R⟱t = λ c → 
+  cofmap⟱ f (s (f c)) (λ x y → R x y ⊎ R (f c) x) (R⟱t (f c))
+
+af-inverseImage : ∀ {ℓ} {A B : Set ℓ} {f : B → A} {R : Rel A ℓ} →
+    Almost-full R → Almost-full (λ x y → R (f x) (f y))
+af-inverseImage {f = f} {R = R} af =
+  af⟱→af ((cofmap f (wft af)) , cofmap⟱ f (wft af) R (af⇒⟱ af))
