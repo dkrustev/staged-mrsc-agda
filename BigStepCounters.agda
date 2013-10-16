@@ -389,9 +389,12 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
   <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} (Pointwise.ext all≤ω , c₁≢c₂) with m ≟ω n
   <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} (Pointwise.ext all≤ω , c₁≢c₂) | yes m≡n rewrite m≡n =
     Lexicographic.right (<C⇒Vec< ((Pointwise.ext (λ i → all≤ω (Fin.suc i))) ,
-                                  (λ c₁≡c₂ → {!!})))
-  <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} (Pointwise.ext all≤ω , c₁≢c₂) | no m≢n = 
-    {!!}
+                                  (λ c₁≡c₂ → c₁≢c₂ (cong (λ c → n ∷ c) c₁≡c₂))))
+  <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} (Pointwise.ext all≤ω , c₁≢c₂) | no m≢n with (all≤ω Fin.zero)
+  <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} (Pointwise.ext all≤ω , c₁≢c₂) | no m≢n | inj₁ m<n =
+    Lexicographic.left m<n
+  <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} (Pointwise.ext all≤ω , c₁≢c₂) | no m≢n | inj₂ m≡n = 
+    ⊥-elim (m≢n m≡n)  
 
   <C-wf : ∀ {k} → Well-founded (_<C_ {k})
   <C-wf = Subrelation.well-founded <C⇒Vec< (Vec<-wf _<ω_ <ω-wf) 
