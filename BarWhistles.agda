@@ -455,3 +455,19 @@ module bar⋑↯⇔af⋑≫ {A : Set} (⋑-world : ⋑-World A) where
     Bar ⋑↯ h ⇔ Almost-full (⋑≫ h)
 
   bar⋑↯⇔af⋑≫ h = equivalence (bar⋑↯→af⋑≫ h) (af⋑≫→bar⋑↯ h)
+
+---
+{-
+  af⟱⋑→bar⋑↯ : (h : List A)
+    (t : WFT A) → _⋑_ ⟱ t → Bar ⋑↯ h
+
+  af⟱⋑→bar⋑↯ h now R⟱ = later (λ c → later (λ c' → now (inj₁ (Any.here (R⟱ c c')))))
+  af⟱⋑→bar⋑↯ h (later s) R⟱ = later helper
+    where
+      helper : ∀ c → Bar ⋑↯ (c ∷ h)
+      helper c = af⟱⋑→bar⋑↯ (c ∷ h) (s c) (⟱-⇒ {!!} (s c) (R⟱ c))
+
+  af⋑→bar⋑↯ : (h : List A) → Almost-full _⋑_ → Bar ⋑↯ h
+  af⋑→bar⋑↯ h af with af→af⟱ af
+  ... | t , R⟱ = af⟱⋑→bar⋑↯ h t R⟱
+-}

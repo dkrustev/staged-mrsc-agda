@@ -335,6 +335,17 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
   _≤ω_ : (m n : ℕω) → Set
   m ≤ω n = m <ω n ⊎ m ≡ n
 
+  _≤ω?_ : Decidable₂ _≤ω_
+  _≤ω?_ m n with m ≟ω n
+  m ≤ω? n | yes m≡n = yes (inj₂ m≡n)
+  m ≤ω? n | no m≢n with m <ω? n
+  m ≤ω? n | no m≢n | yes m<n = yes (inj₁ m<n)
+  m ≤ω? n | no m≢n | no ¬m<n = no helper
+    where 
+      helper : m <ω n ⊎ m ≡ n → ⊥
+      helper (inj₁ m<n) = ¬m<n m<n
+      helper (inj₂ m≡n) = m≢n m≡n
+
   acc-# : ∀ i → Acc N._<′_ i → Acc _<ω_ (# i)
   acc-# i (acc rs) = acc helper
     where
@@ -381,8 +392,9 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
      R newC oldC = ∃ i, oldC[i] > newC[i] ∨ ∀ i, oldC[i] ≥ newC[i]
      R newC oldC = ∃ i, newC[i] < oldC[i] -}
 
+{-
   _<C_ : ∀ {k} → Vec ℕω k → Vec ℕω k → Set
-  c₁ <C c₂ = Pointwise _≤ω_ c₁ c₂ × c₁ ≢ c₂
+  c₁ <C c₂ = Pointwise _≤ω_ c₁ c₂ × c₁ ≢ c₂ 
 
   <C⇒Vec< : ∀ {k} {c₁ c₂ : Vec ℕω k} → c₁ <C c₂ → Vec< _<ω_ c₁ c₂
   <C⇒Vec< {zero} {[]} {[]} (Pointwise.ext app , []≢[]) = []≢[] refl
@@ -401,8 +413,9 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
 
   wfWh : BarWhistle Conf
   wfWh = wfGenWhistle _<C_ (λ c c' → {!!}) <C-wf
+-}
 
-  {--}
+  {-
   ↯C : List Conf → Set
   ↯C [] = ⊥
   ↯C (c ∷ cs) = Any (λ c' → Pointwise _≤ω_ c' c) cs ⊎ ↯C cs
@@ -417,7 +430,22 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
     wfWh↯⊆<↯C {[]} ()
     wfWh↯⊆<↯C {c ∷ h} (inj₁ pAny) = inj₁ (Any⋐Any c pAny)
     wfWh↯⊆<↯C {c ∷ h} (inj₂ dh) = inj₂ (wfWh↯⊆<↯C dh)
-  {--}
+  -}
+
+  _≤C_ : ∀ {k} → Vec ℕω k → Vec ℕω k → Set
+  c₁ ≤C c₂ = Pointwise _≤ω_ c₁ c₂
+
+  _≤C?_ : Decidable₂ _≤C_
+  _≤C?_ = Pointwise.decidable _≤ω?_
+
+  afWh : BarWhistle Conf
+  afWh = 
+    ⟨ 
+      ⋑-World.⋑↯ (record { _⋑_ = _≤C_; _⋑?_ = _≤C?_ }) , 
+      {!!} , 
+      {!!} , 
+      (bar⋑↯⇔af⋑≫.af⋑≫→bar⋑↯ (record { _⋑_ = _≤C_; _⋑?_ = _≤C?_ }) [] {!!}) 
+    ⟩
 
   mkScWorld : (cntWorld : CntWorld {k}) → ScWorld
   mkScWorld ⟨⟨ start , _⇊ , unsafe ⟩⟩ = record
@@ -425,7 +453,7 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
     ; _⊑_ = _⊑_
     ; _⊑?_ = _⊑?_
     ; _⇉ = λ c → c ⇊ ∷ List.map [_] (c ↷) -- driving + rebuilding
-    ; whistle = wfWh
+    ; whistle = afWh
     }
 
   scWorld : ScWorld

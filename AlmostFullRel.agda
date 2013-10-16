@@ -46,6 +46,21 @@ af-⇒ p⇒q (now z) =
 af-⇒ p⇒q (later s) =
   later (λ c → af-⇒ (Sum.map p⇒q p⇒q) (s c))
 
+-- af-⊎
+
+af-⊎ : 
+  ∀ {ℓ} {A : Set ℓ} {P Q : Rel A ℓ} →
+    Almost-full P → Almost-full (λ x y → P x y ⊎ Q x y)
+af-⊎ afP = af-⇒ inj₁ afP
+
+-- af-×
+
+{- The following has a complicated proof in the sources 
+   for the "Stop when you are almost-full" paper -}
+postulate 
+  af-× : ∀ {ℓ} {A : Set ℓ} {P Q : Rel A ℓ} →
+    Almost-full P → Almost-full Q → Almost-full (λ x y → P x y × Q x y)
+
 --
 -- Well-founded trees
 --
