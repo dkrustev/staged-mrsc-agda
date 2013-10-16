@@ -465,7 +465,10 @@ module bar⋑↯⇔af⋑≫ {A : Set} (⋑-world : ⋑-World A) where
   af⟱⋑→bar⋑↯ h (later s) R⟱ = later helper
     where
       helper : ∀ c → Bar ⋑↯ (c ∷ h)
-      helper c = af⟱⋑→bar⋑↯ (c ∷ h) (s c) (⟱-⇒ {!!} (s c) (R⟱ c))
+      -- helper c = af⟱⋑→bar⋑↯ (c ∷ h) (s c) (⟱-⇒ (λ {x y} p → {!!}) (s c) (R⟱ c))
+      helper c with R⟱ c | s c
+      helper c | p | now = {!!}
+      helper c | p | later s₁ = {!!}
 
   af⋑→bar⋑↯ : (h : List A) → Almost-full _⋑_ → Bar ⋑↯ h
   af⋑→bar⋑↯ h af with af→af⟱ af
