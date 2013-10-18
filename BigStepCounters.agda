@@ -289,6 +289,8 @@ module CntSc {k : ℕ} (cntWorld : CntWorld {k})
   cl∞-unsafe : ∀ (l : LazyCograph Conf) → LazyCograph Conf
   cl∞-unsafe = cl∞-bad-conf unsafe
 
+{-
+
 --
 -- An alternative definition of a counter-system supercompiler
 --
@@ -492,6 +494,7 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
   cl∞-unsafe : ∀ (l : LazyCograph Conf) → LazyCograph Conf
   cl∞-unsafe = cl∞-bad-conf unsafe
 
+-}
 
 --
 -- A "DSL" for encoding counter systems in a user-friendly form.
