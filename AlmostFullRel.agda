@@ -3,6 +3,7 @@ module AlmostFullRel where
 open import Level
   using ()
 
+open import Data.Empty
 open import Data.Product as Prod
   using (_×_; _,_; ,_; proj₁; proj₂; Σ; ∃; ∃₂)
 open import Data.Sum as Sum
@@ -172,3 +173,46 @@ af-inverseImage : ∀ {ℓ} {A B : Set ℓ} {f : B → A} {R : Rel A ℓ} →
     Almost-full R → Almost-full (λ x y → R (f x) (f y))
 af-inverseImage {f = f} {R = R} af =
   af⟱→af ((cofmap f (wft af)) , cofmap⟱ f (wft af) R (af⇒⟱ af))
+
+-- af⇒wf
+
+open import Induction.WellFounded
+
+tr-clos : ∀ {ℓ} {X : Set ℓ} (R : Rel X ℓ) → Rel X ℓ
+tr-clos R = _<⁺_
+  where open Transitive-closure R
+
+rt-clos : ∀ {ℓ} {X : Set ℓ} (R : Rel X ℓ) → Rel X ℓ
+rt-clos R x y = x ≡ y ⊎ tr-clos R x y
+
+tr-clos-left : ∀ {ℓ} {X : Set ℓ} (R : Rel X ℓ) z y z0 →
+             R z y -> rt-clos R z0 z -> tr-clos R z0 y
+tr-clos-left R z y z0 Rzy (inj₁ z0≡z) rewrite z0≡z = 
+  Transitive-closure.[ Rzy ]
+tr-clos-left R z y z0 Rzy (inj₂ trRz0z) = 
+  Transitive-closure.trans trRz0z Transitive-closure.[ Rzy ]
+
+rt-clos-left : ∀ {ℓ} {X : Set ℓ} (R : Rel X ℓ) z y z0 →
+             R z y -> rt-clos R z0 z -> rt-clos R z0 y
+rt-clos-left R z y z0 Rzy rtRz0z = inj₂ (tr-clos-left R z y z0 Rzy rtRz0z)
+
+af⇒Acc : ∀ {ℓ} {X : Set ℓ} (R T : Rel X ℓ) (t : WFT X) → R ⟱ t → ∀ y →
+  (∀ x z → rt-clos T z y → tr-clos T x z × R z x → ⊥) → Acc T y
+af⇒Acc R T now R⟱t y p = acc (λ y₁ Ty₁y → 
+  ⊥-elim (p y₁ y (inj₁ refl) (Transitive-closure.[ Ty₁y ] , R⟱t y y₁)))
+af⇒Acc R T (later s) R⟱t y p = acc (λ z Tzy → 
+  af⇒Acc (λ y₀ z → R y₀ z ⊎ R y y₀) T (s y) (R⟱t y) z (helper z Tzy))
+  where
+    helper : ∀ z → T z y → ∀ x z₀ → rt-clos T z₀ z → tr-clos T x z₀ × (R z₀ x ⊎ R y z₀) → ⊥
+    helper z Tzy x z₀ rtcTz₀z (tcTxz₀ , inj₁ Rz₀x) =
+      p x z₀ (rt-clos-left T z y z₀ Tzy rtcTz₀z) (tcTxz₀ , Rz₀x)
+    helper z Tzy x z₀ rtcTz₀z (tcTxz₀ , inj₂ Ryz₀) = 
+      p x z₀ (rt-clos-left T z y z₀ Tzy rtcTz₀z) 
+        (tcTxz₀ , ⊥-elim (p z₀ y (inj₁ refl) 
+          (tr-clos-left T z y z₀ Tzy rtcTz₀z , Ryz₀)))
+
+af⇒wf : ∀ {ℓ} {X : Set ℓ} (R T : Rel X ℓ) →
+  (∀ x y → tr-clos T x y × R y x → ⊥) → ∀ (t : WFT X) → R ⟱ t → Well-founded T
+af⇒wf R T p t s = λ x → 
+  af⇒Acc R T t s x (λ x₁ z rtTzx trTx₁z∧Rzx₁ → p x₁ z trTx₁z∧Rzx₁)
+
