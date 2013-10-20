@@ -265,14 +265,31 @@ wfWhistle {A} _<_ _<?_ wf = ⟨ ↯ , ↯∷ , ↯? , bar[] ⟩
 
 -- wfGenWhistle
 
+wfGen↯ : ∀ {A : Set} (_<_ : Rel A Level.zero) (h : List A) → Set
+wfGen↯ _<_ [] = ⊥
+wfGen↯ _<_ (c ∷ h) = Any (λ c' → ¬ c < c') h ⊎ wfGen↯ _<_ h
+
+wfGenBarHelper : ∀ {A : Set} (_<_ : Rel A Level.zero) → Decidable₂ _<_ →
+             ∀ c (h : List A) → Acc _<_ c → Bar (wfGen↯ _<_) (c ∷ h)
+wfGenBarHelper {A} _<_ _<?_ c h (acc rs) with Any.any (λ c' → ¬? (c <? c')) h
+wfGenBarHelper {A} _<_ _<?_ c h (acc rs) | yes dch = now (inj₁ dch)
+wfGenBarHelper {A} _<_ _<?_ c h (acc rs) | no ¬dch = later helper
+    where
+    helper : (c' : A) → Bar (wfGen↯ _<_) (c' ∷ c ∷ h)
+    helper c' with c' <? c
+    helper c' | yes c'<c = wfGenBarHelper _<_ _<?_ c' (c ∷ h) (rs c' c'<c)
+    helper c' | no ¬c'<c = now (inj₁ (Any.here ¬c'<c))
+
+wfGenBar : ∀ {A : Set} (_<_ : Rel A Level.zero) → Decidable₂ _<_ →
+             ∀ (h : List A) → Well-founded _<_ → Bar (wfGen↯ _<_) h
+wfGenBar _<_ _<?_ h wf-c = later (λ c → wfGenBarHelper _<_ _<?_ c h (wf-c c)) 
+
 wfGenWhistle : ∀ {A : Set} (_<_ : Rel A Level.zero) → Decidable₂ _<_ →
                 (wf : Well-founded _<_) → BarWhistle A
 wfGenWhistle {A} _<_ _<?_ wf = ⟨ ↯ , ↯∷ , ↯? , bar[] ⟩
   where
 
-  ↯ : (h : List A) → Set
-  ↯ [] = ⊥
-  ↯ (c ∷ h) = Any (λ c' → ¬ c < c') h ⊎ ↯ h
+  ↯ = wfGen↯ _<_
 
   ↯∷ : (c : A) (h : List A) → ↯ h → ↯ (c ∷ h)
   ↯∷ c h dh = inj₂ dh
@@ -289,18 +306,8 @@ wfGenWhistle {A} _<_ _<?_ wf = ⟨ ↯ , ↯∷ , ↯? , bar[] ⟩
     helper ¬dch₁ ¬dh₁ (inj₁ dch) = ¬dch₁ dch
     helper ¬dch₁ ¬dh₁ (inj₂ dh) = ¬dh₁ dh
 
-  bar : ∀ c (h : List A) → Acc _<_ c → Bar ↯ (c ∷ h)
-  bar c h (acc rs) with Any.any (λ c' → ¬? (c <? c')) h
-  bar c h (acc rs) | yes dch = now (inj₁ dch)
-  bar c h (acc rs) | no ¬dch = later helper
-    where
-    helper : (c' : A) → Bar ↯ (c' ∷ c ∷ h)
-    helper c' with c' <? c
-    helper c' | yes c'<c = bar c' (c ∷ h) (rs c' c'<c)
-    helper c' | no ¬c'<c = now (inj₁ (Any.here ¬c'<c))
-
   bar[] : Bar ↯ []
-  bar[] = later (λ c → bar c [] (wf c))
+  bar[] = wfGenBar _<_ _<?_ [] wf
 
 --
 -- Whistles based on the idea that some elements of the sequence
@@ -457,20 +464,29 @@ module bar⋑↯⇔af⋑≫ {A : Set} (⋑-world : ⋑-World A) where
   bar⋑↯⇔af⋑≫ h = equivalence (bar⋑↯→af⋑≫ h) (af⋑≫→bar⋑↯ h)
 
 ---
-{-
+-- An alternative construction of a bar from an almost-full relation
+---
+
   af⟱⋑→bar⋑↯ : (h : List A)
     (t : WFT A) → _⋑_ ⟱ t → Bar ⋑↯ h
 
-  af⟱⋑→bar⋑↯ h now R⟱ = later (λ c → later (λ c' → now (inj₁ (Any.here (R⟱ c c')))))
-  af⟱⋑→bar⋑↯ h (later s) R⟱ = later helper
+  af⟱⋑→bar⋑↯ h t R⟱ = 
+    bar-mono (λ {h} dh → wfGen↯⇒⋑↯ h dh) h 
+      (wfGenBar (λ x y → ¬ y ⋑ x) {!!} h 
+        (af⇒wf _⋑_ (λ x y → ¬ y ⋑ x) {!!} t R⟱))
     where
-      helper : ∀ c → Bar ⋑↯ (c ∷ h)
-      -- helper c = af⟱⋑→bar⋑↯ (c ∷ h) (s c) (⟱-⇒ (λ {x y} p → {!!}) (s c) (R⟱ c))
-      helper c with R⟱ c | s c
-      helper c | p | now = {!!}
-      helper c | p | later s₁ = {!!}
+      ¬¬x⋑y⇒x⋑y : ∀ x y → ¬ ¬ x ⋑ y → x ⋑ y
+      ¬¬x⋑y⇒x⋑y x y ¬¬x⋑y with x ⋑? y 
+      ¬¬x⋑y⇒x⋑y x y ¬¬x⋑y | yes x⋑y = x⋑y
+      ¬¬x⋑y⇒x⋑y x y ¬¬x⋑y | no ¬x⋑y = ⊥-elim (¬¬x⋑y ¬x⋑y)
+
+      wfGen↯⇒⋑↯ : ∀ h → wfGen↯ (λ x y → ¬ y ⋑ x) h → ⋑↯ h
+      wfGen↯⇒⋑↯ [] wfd[] = wfd[]
+      wfGen↯⇒⋑↯ (c ∷ h) (inj₁ exc'h) = 
+        inj₁ (Any.map (λ {c'} ¬¬c'⋑c → ¬¬x⋑y⇒x⋑y c' c ¬¬c'⋑c) exc'h)
+      wfGen↯⇒⋑↯ (c ∷ h) (inj₂ dh) = inj₂ (wfGen↯⇒⋑↯ h dh)
 
   af⋑→bar⋑↯ : (h : List A) → Almost-full _⋑_ → Bar ⋑↯ h
   af⋑→bar⋑↯ h af with af→af⟱ af
   ... | t , R⟱ = af⟱⋑→bar⋑↯ h t R⟱
--}
+
