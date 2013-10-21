@@ -182,6 +182,28 @@ tr-clos : ∀ {ℓ} {X : Set ℓ} (R : Rel X ℓ) → Rel X ℓ
 tr-clos R = _<⁺_
   where open Transitive-closure R
 
+data TrClos1n {a} {A : Set a} (R : Rel A a) : Rel A a where
+  step1n : ∀ x y → R x y → TrClos1n R x y
+  trans1n : ∀ x y z → R x y → TrClos1n R y z → TrClos1n R x z
+
+TrClos1n⇒tr-clos : ∀ {a} {A : Set a} (R : Rel A a) x y → TrClos1n R x y → tr-clos R x y
+TrClos1n⇒tr-clos R x y (step1n .x .y x₁) = Transitive-closure.[ x₁ ]
+TrClos1n⇒tr-clos R x y (trans1n .x z .y xRz p) = 
+  Transitive-closure.trans Transitive-closure.[ xRz ] (TrClos1n⇒tr-clos R z y p)
+
+tr-clos⇒TrClos1n : ∀ {a} {A : Set a} (R : Rel A a) x y → tr-clos R x y → TrClos1n R x y
+tr-clos⇒TrClos1n R x y Transitive-closure.[ xRy ] = step1n x y xRy
+tr-clos⇒TrClos1n R x y (Transitive-closure.trans {.x} {z} {.y} tr1 tr2) = 
+  helper x z (tr-clos⇒TrClos1n R x z tr1) tr1 tr2 (tr-clos⇒TrClos1n R z y tr2)
+  where
+    helper : ∀ u v → TrClos1n R u v → tr-clos R u v → tr-clos R v y → 
+      TrClos1n R v y → TrClos1n R u y
+    helper u v (step1n .u .v x₁) uv vy v1y = 
+      trans1n u v y x₁ v1y
+    helper u v (trans1n .u y₁ .v uRy₁ u1v) uv vy v1y = 
+      trans1n u y₁ y uRy₁ 
+        (helper y₁ v u1v (TrClos1n⇒tr-clos R y₁ v u1v) vy v1y)
+
 rt-clos : ∀ {ℓ} {X : Set ℓ} (R : Rel X ℓ) → Rel X ℓ
 rt-clos R x y = x ≡ y ⊎ tr-clos R x y
 
