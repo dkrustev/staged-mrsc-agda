@@ -467,13 +467,15 @@ module bar⋑↯⇔af⋑≫ {A : Set} (⋑-world : ⋑-World A) where
 -- An alternative construction of a bar from an almost-full relation
 ---
 
-  af⟱⋑→bar⋑↯ : (h : List A)
+  af⟱⋑→bar⋑↯ : (∀ x y z → x ⋑ y → ¬ z ⋑ y → x ⋑ z) → (h : List A)
     (t : WFT A) → _⋑_ ⟱ t → Bar ⋑↯ h
 
-  af⟱⋑→bar⋑↯ h t R⟱ = 
+  af⟱⋑→bar⋑↯ ⋑prop h t R⟱ = 
     bar-mono (λ {h} dh → wfGen↯⇒⋑↯ h dh) h 
-      (wfGenBar (λ x y → ¬ y ⋑ x) {!!} h 
-        (af⇒wf _⋑_ (λ x y → ¬ y ⋑ x) {!!} t R⟱))
+      (wfGenBar (λ x y → ¬ y ⋑ x) ¬y⋑x-dec h 
+        (af⇒wf _⋑_ (λ x y → ¬ y ⋑ x) (λ x y p → 
+          helper x y 
+            ((tr-clos⇒TrClos1n (λ x₁ y₁ → ¬ y₁ ⋑ x₁) x y (proj₁ p)) , (proj₂ p))) t R⟱))
     where
       ¬¬x⋑y⇒x⋑y : ∀ x y → ¬ ¬ x ⋑ y → x ⋑ y
       ¬¬x⋑y⇒x⋑y x y ¬¬x⋑y with x ⋑? y 
@@ -486,7 +488,18 @@ module bar⋑↯⇔af⋑≫ {A : Set} (⋑-world : ⋑-World A) where
         inj₁ (Any.map (λ {c'} ¬¬c'⋑c → ¬¬x⋑y⇒x⋑y c' c ¬¬c'⋑c) exc'h)
       wfGen↯⇒⋑↯ (c ∷ h) (inj₂ dh) = inj₂ (wfGen↯⇒⋑↯ h dh)
 
-  af⋑→bar⋑↯ : (h : List A) → Almost-full _⋑_ → Bar ⋑↯ h
-  af⋑→bar⋑↯ h af with af→af⟱ af
-  ... | t , R⟱ = af⟱⋑→bar⋑↯ h t R⟱
+      ¬y⋑x-dec : ∀ x y → Dec (¬ y ⋑ x)
+      ¬y⋑x-dec x y with y ⋑? x
+      ¬y⋑x-dec x y | yes y⋑x = no (λ z → z y⋑x)
+      ¬y⋑x-dec x y | no ¬y⋑x = yes ¬y⋑x
+
+      helper : (x y : A) → TrClos1n (λ x₁ y₁ → ¬ y₁ ⋑ x₁) x y × y ⋑ x → ⊥
+      helper x y (step1n .x .y ¬y₁⋑x , y⋑x) = ¬y₁⋑x y⋑x
+      helper x y (trans1n .x y₁ .y ¬y₁⋑x tr-y₁-y , y⋑x) = 
+        helper y₁ y (tr-y₁-y , ⋑prop y x y₁ y⋑x ¬y₁⋑x)
+
+  af⋑→bar⋑↯ : (∀ x y z → x ⋑ y → ¬ z ⋑ y → x ⋑ z) →
+    (h : List A) → Almost-full _⋑_ → Bar ⋑↯ h
+  af⋑→bar⋑↯ ⋑prop h af with af→af⟱ af
+  ... | t , R⟱ = af⟱⋑→bar⋑↯ ⋑prop h t R⟱
 
