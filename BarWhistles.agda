@@ -21,7 +21,7 @@ open import Data.List as List
 open import Data.List.Any as Any
   using (Any)
 open import Data.List.Any.Properties
-  using (∷↔)
+  using (∷↔; ++↔)
 open import Data.Fin as F
   using (Fin; zero; suc)
 open import Data.Vec as Vec
@@ -31,6 +31,7 @@ open import Data.Product as Prod
 open import Data.Sum as Sum
   using (_⊎_; inj₁; inj₂; [_,_]′)
 open import Data.Empty
+open import Data.Unit using (⊤; tt)
 
 open import Function
 open import Function.Equivalence
@@ -38,6 +39,9 @@ open import Function.Equivalence
 open import Function.Related as Related
   using ()
   renaming (module EquationalReasoning to ∼-Reasoning)
+open import Function.Inverse using (module Inverse)
+open import Function.Equality
+  using (_⟨$⟩_)
 
 open import Relation.Binary.Sum
   using (_⊎-cong_)
@@ -467,6 +471,7 @@ module bar⋑↯⇔af⋑≫ {A : Set} (⋑-world : ⋑-World A) where
 -- An alternative construction of a bar from an almost-full relation
 ---
 
+{-
   af⟱⋑→bar⋑↯ : (∀ x y z → x ⋑ y → ¬ z ⋑ y → x ⋑ z) → (h : List A)
     (t : WFT A) → _⋑_ ⟱ t → Bar ⋑↯ h
 
@@ -502,4 +507,63 @@ module bar⋑↯⇔af⋑≫ {A : Set} (⋑-world : ⋑-World A) where
     (h : List A) → Almost-full _⋑_ → Bar ⋑↯ h
   af⋑→bar⋑↯ ⋑prop h af with af→af⟱ af
   ... | t , R⟱ = af⟱⋑→bar⋑↯ ⋑prop h t R⟱
+
+-}
+
+  af⟱⋑→bar⋑↯ : (h : List A) (t : WFT A) → _⋑_ ⟱ t → Bar ⋑↯ h
+
+  af⟱⋑→bar⋑↯ h t R⟱ = wfRec _ body h
+    where
+      tryHd : ∀ {ℓ} {A : Set ℓ} → List A → A ⊎ ⊤
+      tryHd [] = inj₂ tt
+      tryHd (x ∷ xs) = inj₁ x
+
+      afBarHelperAFRel : Rel (List A) Level.zero
+      afBarHelperAFRel h1 h2 = sum-lift _⋑_ _≡_ (tryHd h1) (tryHd h2)
+
+      afBarHelperAFRel-af : Almost-full afBarHelperAFRel
+      afBarHelperAFRel-af = 
+        af-inverseImage tryHd 
+          (af-sum-lift _⋑_ _≡_ (af⟱→af (t , R⟱)) af-⊤)
+
+      afBarStepRel : Rel (List A) Level.zero
+      afBarStepRel h1 h2 = ∃ (λ c → h1 ≡ c ∷ h2 × ¬ Any (λ c' → c' ⋑ c) h2)
+
+      TrClos-afBarStepRel-app : ∀ h1 h2 → TrClos1n afBarStepRel h1 h2 → ∃ (λ h → h1 ≡ h ++ h2)
+      TrClos-afBarStepRel-app h1 h2 (step1n .h1 .h2 (c , h1≡c∷h2 , ¬Any)) rewrite h1≡c∷h2 = 
+        c ∷ [] , refl
+      TrClos-afBarStepRel-app h1 h2 (trans1n .h1 h .h2 (c , h1≡c∷h , ¬Any) trc) 
+        with TrClos-afBarStepRel-app _ _ trc
+      ... | h' , h≡h'++h2 rewrite h≡h'++h2 = c ∷ h' , h1≡c∷h
+
+      afBarStepRel-wf : Well-founded afBarStepRel
+      afBarStepRel-wf = af⇒wf afBarHelperAFRel afBarStepRel 
+        afBarHelperAFRel-af (λ h1 h2 p → 
+          helper h1 h2 ((TrClos⇒TrClos1n afBarStepRel h1 h2 (proj₁ p)) , proj₂ p))
+        where
+          helper1 : ∀ c c' h' h2 → c' ⋑ c → Any (λ c'' → c'' ⋑ c) (h' ++ c' ∷ h2)
+          helper1 c c' h' h2 c'⋑c = 
+            Inverse.to (++↔ {xs = h'} {ys = c' ∷ h2}) ⟨$⟩ inj₂ (Any.here c'⋑c)
+
+          helper : (x y : List A) → TrClos1n afBarStepRel x y × afBarHelperAFRel y x → ⊥
+          helper h1 [] (step1n .h1 .[] (c , h1≡c∷[] , ¬Any⋑h2) , Ryx) 
+            rewrite h1≡c∷[] = Level.lower Ryx
+          helper h1 (c' ∷ h2) (step1n .h1 .(c' ∷ h2) (c , h1≡c∷c'∷h2 , ¬Any⋑h2) , Ryx) 
+            rewrite h1≡c∷c'∷h2 = ¬Any⋑h2 (Any.here Ryx)
+          helper h1 h2 (trans1n .h1 h .h2 (c , h1≡c∷h , ¬Any⋑h) trcThh2 , Ryx) 
+            with TrClos-afBarStepRel-app _ _ trcThh2
+          helper h1 [] (trans1n .h1 h₁ .[] (c , h1≡c∷h , ¬Any⋑h) trcThh2 , Ryx) 
+            | h' , h≡h'++h2 rewrite h≡h'++h2 | h1≡c∷h = Level.lower Ryx
+          helper h1 (c' ∷ h2) (trans1n .h1 h₁ .(c' ∷ h2) (c , h1≡c∷h , ¬Any⋑h) trcThh2 , Ryx)
+            | h' , h≡h'++h2 rewrite h≡h'++h2 | h1≡c∷h = ¬Any⋑h (helper1 c c' h' h2 Ryx) 
+
+      open All afBarStepRel-wf
+
+      body : ∀ h1 → (∀ h2 → afBarStepRel h2 h1 → Bar ⋑↯ h2) → Bar ⋑↯ h1
+      body h rec = later body1
+        where
+          body1 : ∀ (c : A) → Bar ⋑↯ (c ∷ h)
+          body1 c with Any.any (λ c' → c' ⋑? c) h
+          body1 c | yes p = now (inj₁ p)
+          body1 c | no ¬p = rec (c ∷ h) (c , (refl , ¬p))
 
