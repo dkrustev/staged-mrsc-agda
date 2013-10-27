@@ -8,6 +8,7 @@ open import Data.Product as Prod
   using (_×_; _,_; ,_; proj₁; proj₂; Σ; ∃; ∃₂)
 open import Data.Sum as Sum
   using (_⊎_; inj₁; inj₂; [_,_]′)
+open import Data.Unit using (⊤; tt)
 
 open import Function
 open import Function.Equivalence
@@ -54,6 +55,14 @@ af-⊎ :
     Almost-full P → Almost-full (λ x y → P x y ⊎ Q x y)
 af-⊎ afP = af-⇒ inj₁ afP
 
+-- af-⊤
+
+af-⊤ : Almost-full (_≡_ {A = ⊤})
+af-⊤ = later (λ x → later (λ y → now (helper x y))) 
+  where
+    helper : (x y x₁ y₁ : ⊤) → (x₁ ≡ y₁ ⊎ x ≡ x₁) ⊎ y ≡ x₁ ⊎ x ≡ y
+    helper tt tt tt tt = inj₂ (inj₂ refl)
+
 -- af-×
 
 {- The following has a complicated proof in the sources 
@@ -61,6 +70,19 @@ af-⊎ afP = af-⇒ inj₁ afP
 postulate 
   af-× : ∀ {ℓ} {A : Set ℓ} {P Q : Rel A ℓ} →
     Almost-full P → Almost-full Q → Almost-full (λ x y → P x y × Q x y)
+
+-- sum-lift
+
+sum-lift : ∀ {ℓ} {X Y : Set ℓ} (A : Rel X ℓ) (B : Rel Y ℓ)
+  (x y : X ⊎ Y) → Set ℓ
+sum-lift A B (inj₁ x₁) (inj₁ x₂) = A x₁ x₂
+sum-lift A B (inj₁ x) (inj₂ y) = Level.Lift ⊥
+sum-lift A B (inj₂ y) (inj₁ x) = Level.Lift ⊥
+sum-lift A B (inj₂ y₁) (inj₂ y₂) = B y₁ y₂
+
+postulate 
+  af-sum-lift : ∀ {ℓ} {X Y : Set ℓ} → (A : Rel X ℓ) (B : Rel Y ℓ) →
+    Almost-full A → Almost-full B → Almost-full (sum-lift A B)
 
 --
 -- Well-founded trees
@@ -169,72 +191,78 @@ cofmap⟱ f now R R⟱t = λ x y → R⟱t (f x) (f y)
 cofmap⟱ f (later s) R R⟱t = λ c → 
   cofmap⟱ f (s (f c)) (λ x y → R x y ⊎ R (f c) x) (R⟱t (f c))
 
-af-inverseImage : ∀ {ℓ} {A B : Set ℓ} {f : B → A} {R : Rel A ℓ} →
+af-inverseImage : ∀ {ℓ} {A B : Set ℓ} {R : Rel A ℓ} (f : B → A) →
     Almost-full R → Almost-full (λ x y → R (f x) (f y))
-af-inverseImage {f = f} {R = R} af =
+af-inverseImage {R = R} f af =
   af⟱→af ((cofmap f (wft af)) , cofmap⟱ f (wft af) R (af⇒⟱ af))
 
 -- af⇒wf
 
 open import Induction.WellFounded
 
-tr-clos : ∀ {ℓ} {X : Set ℓ} (R : Rel X ℓ) → Rel X ℓ
-tr-clos R = _<⁺_
+TrClos : ∀ {ℓ} {X : Set ℓ} (R : Rel X ℓ) → Rel X ℓ
+TrClos R = _<⁺_
   where open Transitive-closure R
 
 data TrClos1n {a} {A : Set a} (R : Rel A a) : Rel A a where
   step1n : ∀ x y → R x y → TrClos1n R x y
   trans1n : ∀ x y z → R x y → TrClos1n R y z → TrClos1n R x z
 
-TrClos1n⇒tr-clos : ∀ {a} {A : Set a} (R : Rel A a) x y → TrClos1n R x y → tr-clos R x y
-TrClos1n⇒tr-clos R x y (step1n .x .y x₁) = Transitive-closure.[ x₁ ]
-TrClos1n⇒tr-clos R x y (trans1n .x z .y xRz p) = 
-  Transitive-closure.trans Transitive-closure.[ xRz ] (TrClos1n⇒tr-clos R z y p)
+TrClos1n⇒TrClos : ∀ {a} {A : Set a} (R : Rel A a) x y → TrClos1n R x y → TrClos R x y
+TrClos1n⇒TrClos R x y (step1n .x .y x₁) = Transitive-closure.[ x₁ ]
+TrClos1n⇒TrClos R x y (trans1n .x z .y xRz p) = 
+  Transitive-closure.trans Transitive-closure.[ xRz ] (TrClos1n⇒TrClos R z y p)
 
-tr-clos⇒TrClos1n : ∀ {a} {A : Set a} (R : Rel A a) x y → tr-clos R x y → TrClos1n R x y
-tr-clos⇒TrClos1n R x y Transitive-closure.[ xRy ] = step1n x y xRy
-tr-clos⇒TrClos1n R x y (Transitive-closure.trans {.x} {z} {.y} tr1 tr2) = 
-  helper x z (tr-clos⇒TrClos1n R x z tr1) tr1 tr2 (tr-clos⇒TrClos1n R z y tr2)
+TrClos⇒TrClos1n : ∀ {a} {A : Set a} (R : Rel A a) x y → TrClos R x y → TrClos1n R x y
+TrClos⇒TrClos1n R x y Transitive-closure.[ xRy ] = step1n x y xRy
+TrClos⇒TrClos1n R x y (Transitive-closure.trans {.x} {z} {.y} tr1 tr2) = 
+  helper x z (TrClos⇒TrClos1n R x z tr1) tr1 tr2 (TrClos⇒TrClos1n R z y tr2)
   where
-    helper : ∀ u v → TrClos1n R u v → tr-clos R u v → tr-clos R v y → 
+    helper : ∀ u v → TrClos1n R u v → TrClos R u v → TrClos R v y → 
       TrClos1n R v y → TrClos1n R u y
     helper u v (step1n .u .v x₁) uv vy v1y = 
       trans1n u v y x₁ v1y
     helper u v (trans1n .u y₁ .v uRy₁ u1v) uv vy v1y = 
       trans1n u y₁ y uRy₁ 
-        (helper y₁ v u1v (TrClos1n⇒tr-clos R y₁ v u1v) vy v1y)
+        (helper y₁ v u1v (TrClos1n⇒TrClos R y₁ v u1v) vy v1y)
 
-rt-clos : ∀ {ℓ} {X : Set ℓ} (R : Rel X ℓ) → Rel X ℓ
-rt-clos R x y = x ≡ y ⊎ tr-clos R x y
+RTClos : ∀ {ℓ} {X : Set ℓ} (R : Rel X ℓ) → Rel X ℓ
+RTClos R x y = x ≡ y ⊎ TrClos R x y
 
-tr-clos-left : ∀ {ℓ} {X : Set ℓ} (R : Rel X ℓ) z y z0 →
-             R z y -> rt-clos R z0 z -> tr-clos R z0 y
-tr-clos-left R z y z0 Rzy (inj₁ z0≡z) rewrite z0≡z = 
+TrClos-left : ∀ {ℓ} {X : Set ℓ} (R : Rel X ℓ) z y z0 →
+             R z y -> RTClos R z0 z -> TrClos R z0 y
+TrClos-left R z y z0 Rzy (inj₁ z0≡z) rewrite z0≡z = 
   Transitive-closure.[ Rzy ]
-tr-clos-left R z y z0 Rzy (inj₂ trRz0z) = 
+TrClos-left R z y z0 Rzy (inj₂ trRz0z) = 
   Transitive-closure.trans trRz0z Transitive-closure.[ Rzy ]
 
-rt-clos-left : ∀ {ℓ} {X : Set ℓ} (R : Rel X ℓ) z y z0 →
-             R z y -> rt-clos R z0 z -> rt-clos R z0 y
-rt-clos-left R z y z0 Rzy rtRz0z = inj₂ (tr-clos-left R z y z0 Rzy rtRz0z)
+RTClos-left : ∀ {ℓ} {X : Set ℓ} (R : Rel X ℓ) z y z0 →
+             R z y -> RTClos R z0 z -> RTClos R z0 y
+RTClos-left R z y z0 Rzy rtRz0z = inj₂ (TrClos-left R z y z0 Rzy rtRz0z)
 
-af⇒Acc : ∀ {ℓ} {X : Set ℓ} (R T : Rel X ℓ) (t : WFT X) → R ⟱ t → ∀ y →
-  (∀ x z → rt-clos T z y → tr-clos T x z × R z x → ⊥) → Acc T y
-af⇒Acc R T now R⟱t y p = acc (λ y₁ Ty₁y → 
+af⟱⇒Acc : ∀ {ℓ} {X : Set ℓ} (R T : Rel X ℓ) (t : WFT X) → R ⟱ t → ∀ y →
+  (∀ x z → RTClos T z y → TrClos T x z × R z x → ⊥) → Acc T y
+af⟱⇒Acc R T now R⟱t y p = acc (λ y₁ Ty₁y → 
   ⊥-elim (p y₁ y (inj₁ refl) (Transitive-closure.[ Ty₁y ] , R⟱t y y₁)))
-af⇒Acc R T (later s) R⟱t y p = acc (λ z Tzy → 
-  af⇒Acc (λ y₀ z → R y₀ z ⊎ R y y₀) T (s y) (R⟱t y) z (helper z Tzy))
+af⟱⇒Acc R T (later s) R⟱t y p = acc (λ z Tzy → 
+  af⟱⇒Acc (λ y₀ z → R y₀ z ⊎ R y y₀) T (s y) (R⟱t y) z (helper z Tzy))
   where
-    helper : ∀ z → T z y → ∀ x z₀ → rt-clos T z₀ z → tr-clos T x z₀ × (R z₀ x ⊎ R y z₀) → ⊥
+    helper : ∀ z → T z y → ∀ x z₀ → RTClos T z₀ z → TrClos T x z₀ × (R z₀ x ⊎ R y z₀) → ⊥
     helper z Tzy x z₀ rtcTz₀z (tcTxz₀ , inj₁ Rz₀x) =
-      p x z₀ (rt-clos-left T z y z₀ Tzy rtcTz₀z) (tcTxz₀ , Rz₀x)
+      p x z₀ (RTClos-left T z y z₀ Tzy rtcTz₀z) (tcTxz₀ , Rz₀x)
     helper z Tzy x z₀ rtcTz₀z (tcTxz₀ , inj₂ Ryz₀) = 
-      p x z₀ (rt-clos-left T z y z₀ Tzy rtcTz₀z) 
+      p x z₀ (RTClos-left T z y z₀ Tzy rtcTz₀z) 
         (tcTxz₀ , ⊥-elim (p z₀ y (inj₁ refl) 
-          (tr-clos-left T z y z₀ Tzy rtcTz₀z , Ryz₀)))
+          (TrClos-left T z y z₀ Tzy rtcTz₀z , Ryz₀)))
 
-af⇒wf : ∀ {ℓ} {X : Set ℓ} (R T : Rel X ℓ) →
-  (∀ x y → tr-clos T x y × R y x → ⊥) → ∀ (t : WFT X) → R ⟱ t → Well-founded T
-af⇒wf R T p t s = λ x → 
-  af⇒Acc R T t s x (λ x₁ z rtTzx trTx₁z∧Rzx₁ → p x₁ z trTx₁z∧Rzx₁)
+af⟱⇒wf : ∀ {ℓ} {X : Set ℓ} (R T : Rel X ℓ) →
+  (∀ x y → TrClos T x y × R y x → ⊥) → ∀ (t : WFT X) → R ⟱ t → Well-founded T
+af⟱⇒wf R T p t s = λ x → 
+  af⟱⇒Acc R T t s x (λ x₁ z rtTzx trTx₁z∧Rzx₁ → p x₁ z trTx₁z∧Rzx₁)
+
+af⇒wf : ∀ {ℓ} {X : Set ℓ} (R T : Rel X ℓ) → Almost-full R →
+  (∀ x y → TrClos T x y × R y x → ⊥) →  Well-founded T
+af⇒wf {ℓ} {X} R T afR p = af⟱⇒wf R T p (proj₁ helper) (proj₂ helper)
+  where
+    helper = af→af⟱ afR
 
