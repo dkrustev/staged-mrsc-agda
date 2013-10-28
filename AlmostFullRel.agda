@@ -12,7 +12,8 @@ open import Data.Unit using (⊤; tt)
 
 open import Function
 open import Function.Equivalence
-  using (_⇔_; equivalence)
+  using (_⇔_; equivalence; module Equivalence)
+open import Function.Equality using (_⟨$⟩_)
 
 open import Relation.Binary
   using (Rel; _⇒_) renaming (Decidable to Decidable₂)
@@ -266,3 +267,34 @@ af⇒wf {ℓ} {X} R T afR p = af⟱⇒wf R T p (proj₁ helper) (proj₂ helper)
   where
     helper = af→af⟱ afR
 
+--
+-- Dickson's lemma
+--
+
+open import Data.Nat as N
+  using (ℕ; zero; suc)
+open import Data.Vec as Vec
+  using (Vec; []; _∷_)
+open import Relation.Binary.Vec.Pointwise as Pointwise
+  using (Pointwise; Pointwise′) 
+
+Pointwise′-af : ∀ {A : Set} (R : Rel A _) → Almost-full R → ∀ n →
+                 Almost-full (Pointwise′ R {n = n})
+Pointwise′-af {A} R af zero = 
+  af-⇒ (λ {u} {v} x → helper u v) (af-inverseImage (λ v → tt) af-⊤)
+  where
+    helper : ∀ (u v : Vec A 0) → Pointwise′ R u v
+    helper [] [] = Pointwise.[]
+Pointwise′-af {A} R af (suc n) = 
+  af-⇒ (λ {u} {v} x → Pointwise′-decompose u v (proj₁ x) (proj₂ x)) 
+    (af-× (af-inverseImage Vec.head af)
+      (af-inverseImage Vec.tail (Pointwise′-af R af n)))
+  where
+    Pointwise′-decompose : ∀ (u v : Vec A (suc n)) → R (Vec.head u) (Vec.head v) → 
+               Pointwise′ R (Vec.tail u) (Vec.tail v) → Pointwise′ R u v
+    Pointwise′-decompose (x ∷ u) (x₁ ∷ v) Rh Rt = Rh Pointwise.∷ Rt
+
+Pointwise-af : ∀ {A : Set} (R : Rel A _) → Almost-full R → ∀ n →
+                 Almost-full (Pointwise R {n = n})
+Pointwise-af R af n = 
+  af-⇒ (λ Q → Equivalence.from Pointwise.equivalent ⟨$⟩ Q) (Pointwise′-af R af n)
