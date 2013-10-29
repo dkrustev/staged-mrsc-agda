@@ -289,7 +289,6 @@ module CntSc {k : ℕ} (cntWorld : CntWorld {k})
   cl∞-unsafe : ∀ (l : LazyCograph Conf) → LazyCograph Conf
   cl∞-unsafe = cl∞-bad-conf unsafe
 
-{-
 
 --
 -- An alternative definition of a counter-system supercompiler
@@ -301,8 +300,9 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
   open import Data.Vec hiding ([_])
   open import Induction.WellFounded
   open import Induction.Nat
-  open import VecWf
+--  open import VecWf
   open import AlmostFullRel
+
 
   open CntWorld cntWorld public
 
@@ -335,6 +335,27 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
     helper : ∀ {i j} → ¬ i N.< j → # i <ω # j → ⊥
     helper ¬lt (#<ω# lt) = ¬lt (NP.≤′⇒≤ lt)
 
+  <ω-trichotomy : ∀ m n → m <ω n ⊎ m ≡ n ⊎ n <ω m
+  <ω-trichotomy ω ω = inj₂ (inj₁ refl)
+  <ω-trichotomy ω (# i) = inj₂ (inj₂ #<ω)
+  <ω-trichotomy (# i) ω = inj₁ #<ω
+  <ω-trichotomy (# i) (# j) with i N.≤? j
+  <ω-trichotomy (# i) (# j) | yes i≤j with i N.≟ j
+  <ω-trichotomy (# i) (# j) | yes i≤j | yes i≡j rewrite i≡j = inj₂ (inj₁ refl)
+  <ω-trichotomy (# i) (# j) | yes i≤j | no ¬i≡j = inj₁ (#<ω# (NP.≤⇒≤′ (helper i j i≤j ¬i≡j)))
+    where
+      helper1 : ∀ i j → i N.≤ j → i ≡ j ⊎ i N.< j
+      helper1 .0 zero N.z≤n = inj₁ refl
+      helper1 .0 (suc j₁) N.z≤n = inj₂ (N.s≤s N.z≤n)
+      helper1 .(suc i) (suc j) (N.s≤s {i} le) with helper1 i j le
+      helper1 .(suc m) (suc j₁) (N.s≤s {m} le) | inj₁ eq rewrite eq = inj₁ refl
+      helper1 .(suc m) (suc j₁) (N.s≤s {m} le) | inj₂ lt = inj₂ (N.s≤s lt)
+      helper : ∀ i j → i N.≤ j → ¬ i ≡ j → i N.< j
+      helper i j le neq with helper1 i j le
+      helper i₁ j₁ le neq | inj₁ eq = ⊥-elim (neq eq)
+      helper i₁ j₁ le neq | inj₂ lt = lt
+  <ω-trichotomy (# i) (# j) | no ¬i≤j = inj₂ (inj₂ (#<ω# (NP.≤⇒≤′ (NP.≰⇒> ¬i≤j))))
+
   _≤ω_ : (m n : ℕω) → Set
   m ≤ω n = m <ω n ⊎ m ≡ n
 
@@ -365,16 +386,15 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
   <ω-wf ω = acc-ω <-well-founded
   <ω-wf (# i) = acc-# i (<-well-founded i)
 
-{-
-  _<_ : (c c′ : Conf) → Set
-  _<_ c c′ = Vec< _<ω_ c c′
+  ≤ω-af : Almost-full _≤ω_
+  ≤ω-af = af-⇒ helper (af-from-wf <ω-wf _<ω?_)
+    where
+      helper : ∀ {m n} → ¬ n <ω m → m ≤ω n
+      helper {m} {n} nlt with <ω-trichotomy m n
+      helper {m} {n} nlt | inj₁ lt = inj₁ lt
+      helper {m} {n} nlt | inj₂ (inj₁ eq) rewrite eq = inj₂ refl
+      helper {m} {n} nlt | inj₂ (inj₂ lt) = ⊥-elim (nlt lt)
 
-  _<?_ : Decidable₂ _<_
-  _<?_ c₁ c₂ = Vec<-dec _≟ω_ _<ω_ _<ω?_ c₁ c₂
-
-  <-wf : Well-founded _<_
-  <-wf = Vec<-wf _<ω_ <ω-wf
--}
 
   -- Rebuildings
 
@@ -390,50 +410,7 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
   _↷ c = remove-c (vec-cartesian (Vec.map _↷₁ c))
     where remove-c = List.filter (λ c′ → ⌊ ¬? (c ≟Conf c′) ⌋)
 
-  {- ¬ R newC oldC = ∀ i, oldC[i] ≤ newC[i] ∧ ∃ i, oldC[i] < newC[i]
-     R newC oldC = ∃ i, ¬ oldC[i] ≤ newC[i] ∨ ∀ i, ¬ oldC[i] < newC[i]
-     R newC oldC = ∃ i, oldC[i] > newC[i] ∨ ∀ i, oldC[i] ≥ newC[i]
-     R newC oldC = ∃ i, newC[i] < oldC[i] -}
-
-{-
-  _<C_ : ∀ {k} → Vec ℕω k → Vec ℕω k → Set
-  c₁ <C c₂ = Pointwise _≤ω_ c₁ c₂ × c₁ ≢ c₂ 
-
-  <C⇒Vec< : ∀ {k} {c₁ c₂ : Vec ℕω k} → c₁ <C c₂ → Vec< _<ω_ c₁ c₂
-  <C⇒Vec< {zero} {[]} {[]} (Pointwise.ext app , []≢[]) = []≢[] refl
-  <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} (Pointwise.ext all≤ω , c₁≢c₂) with m ≟ω n
-  <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} (Pointwise.ext all≤ω , c₁≢c₂) | yes m≡n rewrite m≡n =
-    Lexicographic.right (<C⇒Vec< ((Pointwise.ext (λ i → all≤ω (Fin.suc i))) ,
-                                  (λ c₁≡c₂ → c₁≢c₂ (cong (λ c → n ∷ c) c₁≡c₂))))
-  <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} (Pointwise.ext all≤ω , c₁≢c₂) | no m≢n with (all≤ω Fin.zero)
-  <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} (Pointwise.ext all≤ω , c₁≢c₂) | no m≢n | inj₁ m<n =
-    Lexicographic.left m<n
-  <C⇒Vec< {suc k₁} {m ∷ c₁} {n ∷ c₂} (Pointwise.ext all≤ω , c₁≢c₂) | no m≢n | inj₂ m≡n = 
-    ⊥-elim (m≢n m≡n)  
-
-  <C-wf : ∀ {k} → Well-founded (_<C_ {k})
-  <C-wf = Subrelation.well-founded <C⇒Vec< (Vec<-wf _<ω_ <ω-wf) 
-
-  wfWh : BarWhistle Conf
-  wfWh = wfGenWhistle _<C_ (λ c c' → {!!}) <C-wf
--}
-
-  {-
-  ↯C : List Conf → Set
-  ↯C [] = ⊥
-  ↯C (c ∷ cs) = Any (λ c' → Pointwise _≤ω_ c' c) cs ⊎ ↯C cs
-
-  whistle : BarWhistle Conf
-  whistle = ⟨ ↯C , {!!} , {!!} , (bar-mono wfWh↯⊆<↯C [] (BarWhistle.bar[] wfWh)) ⟩
-    where
-    Any⋐Any : ∀ c → Any (λ c' → ¬ c <C c') ⋐ Any (λ c' → Pointwise _≤ω_ c' c) 
-    Any⋐Any c {h} pAny = Any.map (λ {c'} ¬c<Cc' → Pointwise.ext (λ i → {!!})) pAny
-
-    wfWh↯⊆<↯C : ∀ {h} → BarWhistle.↯ wfWh h → ↯C h
-    wfWh↯⊆<↯C {[]} ()
-    wfWh↯⊆<↯C {c ∷ h} (inj₁ pAny) = inj₁ (Any⋐Any c pAny)
-    wfWh↯⊆<↯C {c ∷ h} (inj₂ dh) = inj₂ (wfWh↯⊆<↯C dh)
-  -}
+  -- whistle
 
   _≤C_ : ∀ {k} → Vec ℕω k → Vec ℕω k → Set
   c₁ ≤C c₂ = Pointwise _≤ω_ c₁ c₂
@@ -441,36 +418,22 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
   _≤C?_ : ∀ {k} → Decidable₂ (_≤C_ {k})
   _≤C?_ = Pointwise.decidable _≤ω?_
 
-  postulate 
-    ≤-af : Almost-full N._≤_
-    ≤ω-af : Almost-full _≤ω_
-
   ≤C-af : ∀ {k} → Almost-full (_≤C_ {k})
-  ≤C-af {zero} = now (λ x y → Pointwise.ext (λ ()))
-  ≤C-af {suc k₁} = 
-    helper (af-⇒ 
-      (λ {c c'} x → helper1 c c' x)
-      (af-× (af-inverseImage {f = Vec.head} ≤ω-af) (af-inverseImage {f = Vec.tail} ≤C-af)))
-    where      
-      helper : ∀ {k} → Almost-full (λ c c' → Pointwise.Pointwise′ _≤ω_ {n = k} c c') →
-                 Almost-full (_≤C_ {k})
-      helper = af-⇒ (λ {c c'} x → Equivalence.from Pointwise.equivalent ⟨$⟩ x) 
-      helper1 : ∀ {k} (c c' : Vec ℕω (suc k)) → 
-                  (Vec.head c ≤ω Vec.head c' × Vec.tail c ≤C Vec.tail c') →
-                  Pointwise.Pointwise′ _≤ω_ c c'
-      helper1 (x ∷ c) (x₁ ∷ c') (proj₁ , proj₂) = 
-        proj₁ Pointwise.∷ (Equivalence.to Pointwise.equivalent ⟨$⟩ proj₂)
+  ≤C-af {n} = Pointwise-af _≤ω_ ≤ω-af n
    
   afWh : BarWhistle Conf
   afWh = 
     ⟨ 
       ⋑-World.⋑↯ ≤C-world , 
-      {!!} , 
+      (λ c h → inj₂) , 
       ⋑-World.⋑↯? ≤C-world , 
-      (bar⋑↯⇔af⋑≫.af⋑≫→bar⋑↯ (record { _⋑_ = _≤C_; _⋑?_ = _≤C?_ }) [] {!!}) 
+      bar⋑↯⇔af⋑≫.af⟱⋑→bar⋑↯ ≤C-world [] (proj₁ (helper k)) (proj₂ (helper k))
     ⟩
     where
       ≤C-world = record { _⋑_ = _≤C_; _⋑?_ = _≤C?_ }
+      
+      helper : ∀ k → Almost-full⟱ (_≤C_ {k})
+      helper k = af→af⟱ ≤C-af
 
   mkScWorld : (cntWorld : CntWorld {k}) → ScWorld
   mkScWorld ⟨⟨ start , _⇊ , unsafe ⟩⟩ = record
@@ -494,7 +457,7 @@ module CntSc' {k : ℕ} (cntWorld : CntWorld {k}) where
   cl∞-unsafe : ∀ (l : LazyCograph Conf) → LazyCograph Conf
   cl∞-unsafe = cl∞-bad-conf unsafe
 
--}
+
 
 --
 -- A "DSL" for encoding counter systems in a user-friendly form.
