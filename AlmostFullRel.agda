@@ -15,6 +15,7 @@ open import Function.Equivalence
   using (_⇔_; equivalence; module Equivalence)
 open import Function.Equality using (_⟨$⟩_)
 
+open import Relation.Nullary
 open import Relation.Binary
   using (Rel; _⇒_) renaming (Decidable to Decidable₂)
 open import Function.Inverse as Inv
@@ -26,6 +27,8 @@ import Relation.Binary.Sigma.Pointwise as Σ
 
 open import Relation.Binary.PropositionalEquality as P
   renaming ([_] to P[_])
+
+open import Induction.WellFounded
 
 --
 -- Almost-full relations
@@ -197,9 +200,43 @@ af-inverseImage : ∀ {ℓ} {A B : Set ℓ} {R : Rel A ℓ} (f : B → A) →
 af-inverseImage {R = R} f af =
   af⟱→af ((cofmap f (wft af)) , cofmap⟱ f (wft af) R (af⇒⟱ af))
 
--- af⇒wf
+--
+-- From a decidable Well-founded relation to an AlmostFull
+--
 
-open import Induction.WellFounded
+-- Generalization to an arbitrary decidable well-founded relation
+
+af-iter : ∀ {ℓ} {X : Set ℓ} {R : Rel X ℓ} 
+         (decR : Decidable₂ R) (z : X) (accX : Acc R z) →
+         Almost-full (λ x y → ¬ R x z ⊎ ¬ R y x)
+
+af-iter {R = R} d z (acc rs) = later (λ u → help u (d u z))
+  where
+    help : ∀ u → Dec (R u z) →
+      Almost-full (λ x y → (¬ R x z ⊎ ¬ R y x) ⊎ (¬ R u z ⊎ ¬ R x u))
+    help u (yes ruz) =
+      af-⇒
+        (λ {x y} → λ {
+          (inj₁ ¬Rxu) → inj₂ (inj₂ ¬Rxu) 
+          ; (inj₂ ¬Ryx) → inj₁ (inj₂ ¬Ryx)
+        })
+        (af-iter d u (rs u ruz))
+    help y (no ¬ruz) = now (λ x y → inj₂ (inj₁ ¬ruz))
+
+af-from-wf : ∀ {ℓ} {X : Set ℓ} {R : Rel X ℓ} →
+  Well-founded R → Decidable₂ R → Almost-full (λ x y → ¬ (R y x))
+af-from-wf {R = R} w d = later (λ u →
+  af-⇒ 
+    (λ {x y} → λ {
+      (inj₁ ¬Rxu) → inj₂ ¬Rxu
+      ; (inj₂ ¬Ryx) → inj₁ ¬Ryx
+    })
+    (af-iter d u (w u)))
+
+--
+-- af⇒wf
+--
+
 
 TrClos : ∀ {ℓ} {X : Set ℓ} (R : Rel X ℓ) → Rel X ℓ
 TrClos R = _<⁺_
